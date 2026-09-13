@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clean Quest</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  /* Notion dark-theme neutrals, not app-blue */
+  :root{
+    --bg:#191919; --panel:#232323; --panel2:#2b2b2b; --line:rgba(255,255,255,.09);
+    --text:#e9e9e7; --dim:#9b9b98;
+    --accent:#d3a86b;   /* muted amber, close to Notion's default tag color */
+    --done:#7fa876;     /* muted sage green */
+    --r:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:var(--bg);color:var(--text);font-family:'Lora',Georgia,'Times New Roman',serif;
+       padding:14px 12px 60px;max-width:560px;margin:0 auto}
+
+  header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  h1{font-size:23px;font-weight:700;flex:1}
+  #resetBtn{background:var(--panel);border:1px solid var(--line);color:var(--dim);
+    width:34px;height:34px;border-radius:8px;font-size:17px;cursor:pointer;flex:0 0 auto;
+    font-family:system-ui,sans-serif;line-height:1}
+  #resetBtn:hover{color:var(--text);border-color:var(--dim)}
+  .ring{width:50px;height:50px;flex:0 0 50px;position:relative}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+             font-weight:700;font-size:13px;color:var(--accent)}
+
+  .energy{display:flex;gap:8px;margin-bottom:12px}
+  .energy button{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--text);
+    border-radius:var(--r);padding:10px 6px;font-size:13px;cursor:pointer;font-family:inherit}
+  .energy button.on{border-color:var(--accent);background:var(--panel2);color:var(--accent)}
+
+  .draw{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:var(--r);
+    padding:13px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:14px;font-family:inherit}
+  .draw:active{background:var(--panel)}
+
+  .quest{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:14px}
+  .quest .qic{font-size:26px;line-height:1;margin-bottom:6px}
+  .quest .room{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent)}
+  .quest .task{font-size:17px;font-weight:600;margin:3px 0}
+  .quest .meta{font-size:12px;color:var(--dim);margin-bottom:11px;font-family:system-ui,sans-serif}
+  .quest .row{display:flex;gap:7px}
+  .quest button{flex:1;border:1px solid var(--line);border-radius:8px;padding:11px;font-size:14px;
+                font-weight:600;cursor:pointer;font-family:inherit}
+  .qdone{background:var(--done);color:#161f14;border-color:var(--done)}
+  .qskip{background:var(--panel2);color:var(--text)}
+  .qtimer{background:var(--panel2);color:var(--text);flex:0 0 auto !important;padding:11px 13px !important;
+          font-family:system-ui,sans-serif;font-variant-numeric:tabular-nums}
+
+  h2.sec{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin:4px 0 9px;
+         font-family:system-ui,sans-serif}
+
+  /* rooms: full-width stacked cards; tasks expand INLINE beneath, no bottom sheet */
+  .room{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);margin-bottom:9px;overflow:hidden}
+  .rhead{display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer}
+  .rhead .ric{font-size:20px;flex:0 0 auto}
+  .rhead .rn{flex:1;font-weight:600;font-size:15.5px}
+  .rhead .rc{font-size:12px;color:var(--dim);font-family:system-ui,sans-serif}
+  .room.cleared .rhead .rc{color:var(--done)}
+  .room.cleared .rhead .rn::after{content:" ✓";color:var(--done)}
+  .barwrap{height:3px;background:var(--line)}
+  .bar{height:100%;background:var(--accent);width:0%;transition:width .4s ease}
+  .room.cleared .bar{background:var(--done)}
+
+  .tasklist{display:none;padding:2px 14px 10px}
+  .room.open .tasklist{display:block}
+  .ti{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);cursor:pointer}
+  .ti .bx{width:20px;height:20px;flex:0 0 20px;border-radius:5px;border:1.5px solid var(--dim);
+          display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--bg);
+          font-family:system-ui,sans-serif}
+  .ti.done .bx{background:var(--done);border-color:var(--done)}
+  .ti .tic{font-size:16px;flex:0 0 auto}
+  .ti .tt{flex:1;font-size:14.5px;line-height:1.35}
+  .ti.done .tt{color:var(--dim);text-decoration:line-through}
+  .ti .ef{font-size:10.5px;color:var(--dim);flex:0 0 auto;font-family:system-ui,sans-serif}
+
+  .foot{margin-top:16px;text-align:center;font-size:12.5px;color:var(--dim);line-height:1.6;
+        font-family:system-ui,sans-serif}
+  .foot button{background:none;border:none;color:var(--dim);text-decoration:underline;cursor:pointer;
+               font-size:12px;margin-top:7px;font-family:system-ui,sans-serif}
+
+  /* custom confirm modal — replaces native confirm() which Notion's sandbox blocks */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:90;display:none;
+         align-items:center;justify-content:center;padding:20px}
+  .modal.open{display:flex}
+  .modalbox{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px;
+            max-width:320px;width:100%;text-align:center}
+  .modalbox p{margin-bottom:16px;font-size:15px}
+  .modalrow{display:flex;gap:8px}
+  .modalrow button{flex:1;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:14px;
+                    cursor:pointer;font-family:system-ui,sans-serif;font-weight:600}
+  .mcancel{background:var(--panel2);color:var(--text)}
+  .mconfirm{background:#b8544a;color:#fff;border-color:#b8544a}
+
+  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(120px);
+    background:var(--panel2);border:1px solid var(--line);color:var(--text);font-weight:600;
+    padding:11px 20px;border-radius:99px;font-size:14px;transition:transform .35s ease;z-index:80;
+    font-family:system-ui,sans-serif}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  @media (prefers-reduced-motion:reduce){.bar,.toast{transition:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Clean Quest</h1>
+  <button id="resetBtn" title="Reset cleaning progress" aria-label="Reset cleaning progress">↺</button>
+  <div class="ring">
+    <svg width="50" height="50">
+      <circle cx="25" cy="25" r="21" stroke="var(--line)" stroke-width="5" fill="none"/>
+      <circle id="ringFg" cx="25" cy="25" r="21" stroke="var(--accent)" stroke-width="5" fill="none"
+              stroke-linecap="round" stroke-dasharray="132" stroke-dashoffset="132"/>
+    </svg>
+    <div class="pct" id="ringPct">0%</div>
+  </div>
+</header>
+
+<div class="energy" role="group" aria-label="Energy">
+  <button data-e="simple">Simple <span style="opacity:.6">— fewer tasks</span></button>
+  <button data-e="full" class="on">Full <span style="opacity:.6">— everything</span></button>
+</div>
+
+<button class="draw" id="drawBtn">🎲 Give me one task</button>
+
+<div class="quest" id="quest" style="display:none">
+  <div class="qic" id="qIc">🧽</div>
+  <div class="room" id="qRoom"></div>
+  <div class="task" id="qTask"></div>
+  <div class="meta" id="qMeta"></div>
+  <div class="row">
+    <button class="qdone" id="qDone">Done ✓</button>
+    <button class="qtimer" id="qTimer">⏱ 10</button>
+    <button class="qskip" id="qSkip">Another</button>
+  </div>
+</div>
+
+<h2 class="sec">Your rooms</h2>
+<div id="rooms"></div>
+
+<div class="foot">
+  Skipping is allowed. Stopping is allowed. Every task counts.
+</div>
+
+<div class="modal" id="modal">
+  <div class="modalbox">
+    <p>Really reset all cleaning progress?</p>
+    <div class="modalrow">
+      <button class="mcancel" id="mCancel">Cancel</button>
+      <button class="mconfirm" id="mConfirm">Reset</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* simpleOk: true = included in "Simple" mode. Heavy/rare tasks (windows, wardrobe deep,
+   wig care, bedsheets) are Full-only, per request. */
+const ROOMS = [
+  {id:"upper-hall", name:"Upper hallway", ic:"🚪", tasks:[
+    {id:"fo1", ic:"👕", t:"Clothes off the stair railing", e:2, simpleOk:true},
+    {id:"fo2", ic:"🧹", t:"Put the vacuum back in its place", e:1, simpleOk:true},
+    {id:"fo3", ic:"🌀", t:"Vacuum the floor", e:2, simpleOk:true},
+    {id:"fo4", ic:"🪶", t:"Dust (railing, corners)", e:2, simpleOk:false},
+  ]},
+  {id:"bedroom", name:"Bedroom", ic:"🛏️", tasks:[
+    {id:"s1", ic:"🛏️", t:"Make the bed", e:1, simpleOk:true},
+    {id:"s2", ic:"🧺", t:"Pick things up off the floor", e:1, simpleOk:true},
+    {id:"s3", ic:"🗯️", t:"Clear the nightstand", e:1, simpleOk:true},
+    {id:"s4", ic:"🌀", t:"Vacuum the floor", e:2, simpleOk:true},
+    {id:"s5", ic:"🧷", t:"Change the bed sheets", e:2, simpleOk:false},
+    {id:"s6", ic:"🚪", t:"Wardrobe inside: tidy + dust shelves", e:3, simpleOk:false},
+    {id:"s7", ic:"🪞", t:"Clean wardrobe mirror doors", e:2, simpleOk:false},
+    {id:"s8", ic:"🪶", t:"Dust (nightstands, radiator, sill)", e:2, simpleOk:false},
+    {id:"s9", ic:"🪟", t:"Clean the window", e:2, simpleOk:false},
+  ]},
+  {id:"office", name:"Office / Beauty", ic:"💄", tasks:[
+    {id:"b1", ic:"👛", t:"Wig + tools off the armchair", e:1, simpleOk:true},
+    {id:"b2", ic:"💅", t:"Sort the vanity surface", e:2, simpleOk:true},
+    {id:"b3", ic:"📦", t:"Boxes + clutter off the floor", e:2, simpleOk:true},
+    {id:"b4", ic:"🌀", t:"Vacuum the floor", e:2, simpleOk:true},
+    {id:"b5", ic:"🪮", t:"Wash hairbrushes + combs", e:2, simpleOk:false},
+    {id:"b6", ic:"🖌️", t:"Clean makeup brushes + sponges", e:2, simpleOk:false},
+    {id:"b7", ic:"🧴", t:"Wipe products, toss expired ones", e:2, simpleOk:false},
+    {id:"b8", ic:"🪞", t:"Clean the vanity mirror", e:1, simpleOk:true},
+    {id:"b9", ic:"👩‍🦰", t:"Comb the wig + clean its stand", e:2, simpleOk:false},
+    {id:"b10", ic:"🔌", t:"Bundle the desk cables", e:2, simpleOk:false},
+    {id:"b11", ic:"🪶", t:"Shelf: dust shelf by shelf", e:2, simpleOk:false},
+    {id:"b12", ic:"🪟", t:"Clean the window", e:2, simpleOk:false},
+  ]},
+  {id:"living", name:"Living room", ic:"🛋️", tasks:[
+    {id:"w1", ic:"🧸", t:"Fold blankets + arrange cushions", e:1, simpleOk:true},
+    {id:"w2", ic:"⌨️", t:"Tidy keyboard + mouse", e:1, simpleOk:true},
+    {id:"w3", ic:"☕", t:"Clear the coffee table", e:1, simpleOk:true},
+    {id:"w4", ic:"🌀", t:"Vacuum floor + rug", e:2, simpleOk:true},
+    {id:"w5", ic:"🔌", t:"Sort the cables behind TV/PC", e:3, simpleOk:false},
+    {id:"w6", ic:"📺", t:"Dust the screens", e:1, simpleOk:false},
+    {id:"w7", ic:"🪶", t:"Dust (shelves, frames, sill)", e:2, simpleOk:false},
+    {id:"w8", ic:"🪟", t:"Clean the windows", e:3, simpleOk:false},
+    {id:"w9", ic:"🛋️", t:"Vacuum the couch cushions", e:2, simpleOk:false},
+  ]},
+  {id:"sunroom", name:"Sunroom", ic:"🪴", tasks:[
+    {id:"wg1", ic:"🫧", t:"Straighten beanbag + blanket", e:1, simpleOk:true},
+    {id:"wg2", ic:"📦", t:"Deal with the cardboard box", e:1, simpleOk:true},
+    {id:"wg3", ic:"🚿", t:"Water plants + remove dead leaves", e:1, simpleOk:true},
+    {id:"wg4", ic:"🧽", t:"Sweep/mop the tile floor", e:2, simpleOk:true},
+    {id:"wg5", ic:"🪟", t:"Clean windows (lots of glass!)", e:3, simpleOk:false},
+    {id:"wg6", ic:"🗄️", t:"Dresser: dust + sort drawers", e:2, simpleOk:false},
+    {id:"wg7", ic:"🌿", t:"Wipe the plant leaves", e:1, simpleOk:false},
+  ]},
+  {id:"kitchen", name:"Kitchen", ic:"🍳", tasks:[
+    {id:"k1", ic:"🍽️", t:"Empty sink / load dishwasher", e:2, simpleOk:true},
+    {id:"k2", ic:"🧼", t:"Clear + wipe the countertop", e:2, simpleOk:true},
+    {id:"k3", ic:"🪣", t:"Bucket + stuff off the floor", e:1, simpleOk:true},
+    {id:"k4", ic:"🧽", t:"Sweep + mop the floor", e:3, simpleOk:true},
+    {id:"k5", ic:"🔥", t:"Clean the oven inside", e:3, simpleOk:false},
+    {id:"k6", ic:"🚪", t:"Wipe cabinet fronts (grease)", e:2, simpleOk:false},
+    {id:"k7", ic:"🥫", t:"Sort + wipe one cabinet shelf", e:2, simpleOk:false},
+    {id:"k8", ic:"💨", t:"Clean extractor hood / grease filter", e:3, simpleOk:false},
+    {id:"k9", ic:"🪟", t:"Clean the window", e:2, simpleOk:false},
+    {id:"k10", ic:"🗑️", t:"Wash out the trash bin", e:1, simpleOk:true},
+  ]},
+  {id:"bathroom", name:"Bathroom", ic:"🚽", tasks:[
+    {id:"ba1", ic:"🧺", t:"Clear things off the washing machine", e:1, simpleOk:true},
+    {id:"ba2", ic:"🚰", t:"Wipe sink + shelf", e:1, simpleOk:true},
+    {id:"ba3", ic:"🚽", t:"Clean the toilet", e:1, simpleOk:true},
+    {id:"ba4", ic:"🧽", t:"Mop the floor", e:2, simpleOk:true},
+    {id:"ba5", ic:"🗄️", t:"Empty + wipe mirror cabinet inside", e:2, simpleOk:false},
+    {id:"ba6", ic:"🪞", t:"Clean the mirror", e:1, simpleOk:true},
+    {id:"ba7", ic:"🛁", t:"Scrub shower/tub + tiles", e:3, simpleOk:false},
+    {id:"ba8", ic:"🚿", t:"Wipe or wash the shower curtain", e:2, simpleOk:false},
+    {id:"ba9", ic:"🪟", t:"Clean the window", e:2, simpleOk:false},
+    {id:"ba10", ic:"🌀", t:"Washing machine: drawer + seal", e:2, simpleOk:false},
+    {id:"ba11", ic:"🪮", t:"Wash the hairbrushes in here", e:1, simpleOk:false},
+  ]},
+  {id:"guest-wc", name:"Guest WC", ic:"🚻", tasks:[
+    {id:"g1", ic:"🚽", t:"Wipe sink + toilet", e:1, simpleOk:true},
+    {id:"g2", ic:"🪞", t:"Clean the mirror", e:1, simpleOk:true},
+    {id:"g3", ic:"🧽", t:"Mop the floor", e:1, simpleOk:true},
+  ]},
+  {id:"entry", name:"Entry / Coats", ic:"🚪", tasks:[
+    {id:"fu1", ic:"👞", t:"Shoes onto the rack", e:1, simpleOk:true},
+    {id:"fu2", ic:"📦", t:"Clear boxes + bags", e:2, simpleOk:true},
+    {id:"fu3", ic:"🌀", t:"Vacuum the floor", e:2, simpleOk:true},
+    {id:"fu4", ic:"🪶", t:"Dust the coat rack shelves", e:2, simpleOk:false},
+  ]},
+  {id:"balcony", name:"Balcony / Loggia", ic:"🌤️", tasks:[
+    {id:"bl1", ic:"🧺", t:"Take laundry down + fold the rack", e:2, simpleOk:true},
+    {id:"bl2", ic:"🪟", t:"Clear the windowsill", e:1, simpleOk:true},
+    {id:"bl3", ic:"✨", t:"Clean windows / glass wall", e:3, simpleOk:false},
+    {id:"bl4", ic:"🧹", t:"Sweep the floor", e:1, simpleOk:true},
+  ]},
+];
+
+const EFFLBL = {1:"~5min", 2:"5–15", 3:"15–30"};
+const KEY = "cleanquest-notion-v1";
+let state = {done:{}, xp:0, mode:"full"};
+let current=null, timerInt=null;
+const $ = id => document.getElementById(id);
+
+function readLocal(){ try{const r=localStorage.getItem(KEY); return r?JSON.parse(r):null;}catch(e){return null;} }
+function writeLocal(){ try{localStorage.setItem(KEY, JSON.stringify(state));}catch(e){} }
+async function load(){
+  const l = readLocal(); if(l) state = {...state, ...l};
+  try{
+    if(window.storage){
+      const r = await window.storage.get(KEY);
+      if(r && r.value){
+        const rem = JSON.parse(r.value);
+        if(Object.keys(rem.done||{}).length > Object.keys(state.done||{}).length) state = {...state, ...rem};
+      }
+    }
+  }catch(e){}
+  render();
+}
+async function save(){
+  writeLocal();
+  try{ if(window.storage) await window.storage.set(KEY, JSON.stringify(state)); }catch(e){}
+}
+
+function allTasks(){ return ROOMS.flatMap(r=>r.tasks.map(t=>({...t, room:r.name, roomIc:r.ic, roomId:r.id}))); }
+function visibleTasks(list){ return state.mode==="simple" ? list.filter(t=>t.simpleOk) : list; }
+function openTasksPool(){ return visibleTasks(allTasks()).filter(t=>!state.done[t.id]); }
+
+function render(){
+  const vis = visibleTasks(allTasks());
+  const total = vis.length, done = vis.filter(t=>state.done[t.id]).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  const C = 2*Math.PI*21;
+  $("ringFg").setAttribute("stroke-dasharray", C);
+  $("ringFg").setAttribute("stroke-dashoffset", C - C*pct/100);
+  $("ringPct").textContent = pct + "%";
+
+  document.querySelectorAll(".energy button").forEach(b=>b.classList.toggle("on", b.dataset.e===state.mode));
+
+  const openIds = [...document.querySelectorAll(".room.open")].map(c=>c.dataset.r);
+
+  $("rooms").innerHTML = ROOMS.map(r=>{
+    const tasks = visibleTasks(r.tasks);
+    if(!tasks.length) return "";
+    const dn = tasks.filter(t=>state.done[t.id]).length;
+    const p = tasks.length ? Math.round(dn/tasks.length*100) : 0;
+    const isOpen = openIds.includes(r.id);
+    return `<div class="room ${p===100?"cleared":""} ${isOpen?"open":""}" data-r="${r.id}">
+      <div class="rhead">
+        <div class="ric">${r.ic}</div>
+        <div class="rn">${r.name}</div>
+        <div class="rc">${p===100?"clean":dn+"/"+tasks.length}</div>
+      </div>
+      <div class="barwrap"><div class="bar" style="width:${p}%"></div></div>
+      <div class="tasklist">
+        ${tasks.map(t=>`
+          <div class="ti ${state.done[t.id]?"done":""}" data-t="${t.id}">
+            <div class="bx">${state.done[t.id]?"✓":""}</div>
+            <div class="tic">${t.ic}</div>
+            <div class="tt">${t.t}</div>
+            <div class="ef">${EFFLBL[t.e]}</div>
+          </div>`).join("")}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2100); }
+
+function toggleTask(id){
+  const t = allTasks().find(x=>x.id===id); if(!t) return;
+  if(state.done[id]){ delete state.done[id]; state.xp=Math.max(0,state.xp-t.e*10); save(); render(); return; }
+  state.done[id]=true; state.xp+=t.e*10; save();
+  const room=ROOMS.find(r=>r.id===t.roomId);
+  const vis = visibleTasks(room.tasks);
+  const full = vis.every(x=>state.done[x.id]);
+  render();
+  toast(full ? `${room.name} is clean` : `+${t.e*10}`);
+}
+
+function drawTask(){
+  stopTimer();
+  const pool=openTasksPool();
+  if(!pool.length){ toast("All clean 🎉"); $("quest").style.display="none"; return; }
+  let p=pool[Math.floor(Math.random()*pool.length)];
+  if(current&&pool.length>1){ while(p.id===current.id) p=pool[Math.floor(Math.random()*pool.length)]; }
+  current=p;
+  $("qIc").textContent=p.ic;
+  $("qRoom").textContent=p.roomIc+" "+p.room;
+  $("qTask").textContent=p.t;
+  $("qMeta").textContent=EFFLBL[p.e]+" min · "+(p.e*10)+" pts";
+  $("qTimer").textContent="⏱ 10";
+  $("quest").style.display="block";
+}
+function stopTimer(){ if(timerInt){clearInterval(timerInt); timerInt=null;} }
+function startTimer(){
+  stopTimer(); let sec=600; const b=$("qTimer");
+  b.innerHTML=`<span>10:00</span>`;
+  timerInt=setInterval(()=>{
+    sec--; const m=Math.floor(sec/60), s=String(sec%60).padStart(2,"0");
+    b.innerHTML=`<span>${m}:${s}</span>`;
+    if(sec<=0){ stopTimer(); b.textContent="done"; toast("10 minutes done — you can stop"); }
+  },1000);
+}
+
+document.querySelector(".energy").addEventListener("click", e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  state.mode=b.dataset.e; save(); render();
+});
+$("drawBtn").addEventListener("click", drawTask);
+$("qSkip").addEventListener("click", drawTask);
+$("qTimer").addEventListener("click", startTimer);
+$("qDone").addEventListener("click", ()=>{ if(current){ toggleTask(current.id); current=null; stopTimer(); $("quest").style.display="none"; } });
+
+$("rooms").addEventListener("click", e=>{
+  const ti = e.target.closest(".ti");
+  if(ti){ toggleTask(ti.dataset.t); return; }
+  const head = e.target.closest(".rhead");
+  if(head) head.closest(".room").classList.toggle("open");
+});
+
+/* custom modal replaces native confirm(), which Notion's HTML-block sandbox blocks silently */
+$("resetBtn").addEventListener("click", ()=>{ $("modal").classList.add("open"); });
+$("mCancel").addEventListener("click", ()=>{ $("modal").classList.remove("open"); });
+$("modal").addEventListener("click", e=>{ if(e.target.id==="modal") $("modal").classList.remove("open"); });
+$("mConfirm").addEventListener("click", ()=>{
+  state.done={}; state.xp=0; save(); render();
+  $("quest").style.display="none";
+  $("modal").classList.remove("open");
+  toast("Progress reset");
+});
+
+load();
+</script>
+</body>
+</html>
